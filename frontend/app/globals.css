@@ -1,0 +1,52 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  background:
+    radial-gradient(1200px 600px at 10% -10%, rgb(124 58 237 / 0.12), transparent 60%),
+    radial-gradient(900px 500px at 110% 10%, rgb(59 130 246 / 0.08), transparent 60%),
+    #09090b;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl border border-zinc-800 bg-zinc-900/50 p-5;
+  }
+  .eyebrow {
+    @apply text-xs font-semibold uppercase tracking-wider text-violet-300/80;
+  }
+  .input {
+    @apply rounded-lg border border-zinc-700 bg-zinc-950/70 px-3 py-2 text-zinc-100 outline-none placeholder:text-zinc-500 focus:border-violet-500;
+  }
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-700 px-4 py-2 text-sm text-zinc-200 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .icon-btn {
+    @apply flex h-6 w-6 items-center justify-center rounded text-xs text-zinc-400 hover:bg-zinc-800 hover:text-white;
+  }
+}
+
+/* Monaco line highlight for Explain / Learn */
+.lunor-highlight {
+  background: rgb(139 92 246 / 0.22);
+  border-left: 3px solid rgb(167 139 250);
+}
+
+.prose-lunor p { margin: 0.5em 0; color: rgb(212 212 216); line-height: 1.6; }
+.prose-lunor code { background: rgb(39 39 42); padding: 0.1em 0.35em; border-radius: 4px; font-size: 0.9em; color: rgb(221 214 254); }
+.prose-lunor ul, .prose-lunor ol { padding-left: 1.2em; margin: 0.5em 0; color: rgb(212 212 216); }
+.prose-lunor ul { list-style: disc; }
+.prose-lunor ol { list-style: decimal; }
+.prose-lunor strong { color: white; }

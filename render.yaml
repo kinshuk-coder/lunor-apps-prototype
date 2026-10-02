@@ -1,0 +1,20 @@
+# Render blueprint for the FastAPI backend. Set GROQ_API_KEY and CORS_ORIGINS in the dashboard.
+services:
+  - type: web
+    name: lunor-apps-api
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      - key: GROQ_API_KEY
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: STRONG_MODEL
+        value: qwen/qwen3.8-27b
+      - key: FAST_MODEL
+        value: openai/gpt-oss-20b
