@@ -14,7 +14,9 @@ services:
         sync: false
       - key: CORS_ORIGINS
         sync: false
+      - key: MISTRAL_API_KEY
+        sync: false
       - key: STRONG_MODEL
-        value: qwen/qwen3.8-27b
+        value: codestral-latest
       - key: FAST_MODEL
         value: openai/gpt-oss-20b

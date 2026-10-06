@@ -57,7 +57,7 @@ class FakeCompletions:
 def test_json_call_reasks_once_on_invalid(monkeypatch):
     good = UnderstandOut(app_name="A", summary="s", target_users=["u"], features=[], questions=[]).model_dump_json()
     fake = FakeCompletions(['{"app_name": "A"}', good])
-    monkeypatch.setattr(llm, "client", lambda: fake_client(fake))
+    monkeypatch.setattr(llm, "client", lambda *_: fake_client(fake))
     out = asyncio.run(llm.json_call("openai/gpt-oss-20b", "sys", "user", UnderstandOut))
     assert out.app_name == "A"
     assert len(fake.calls) == 2
@@ -67,7 +67,7 @@ def test_json_call_reasks_once_on_invalid(monkeypatch):
 
 def test_json_call_gives_up_after_two(monkeypatch):
     fake = FakeCompletions(["nope", "still nope"])
-    monkeypatch.setattr(llm, "client", lambda: fake_client(fake))
+    monkeypatch.setattr(llm, "client", lambda *_: fake_client(fake))
     with pytest.raises(llm.LLMError):
         asyncio.run(llm.json_call("qwen/qwen3.8-27b", "sys", "user", UnderstandOut))
 
@@ -93,7 +93,20 @@ def test_strong_model_falls_back_when_rate_limited(monkeypatch, status):
             return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=good))])
 
     fake = LimitedOnce([])
-    monkeypatch.setattr(llm, "client", lambda: fake_client(fake))
+    monkeypatch.setattr(llm, "client", lambda *_: fake_client(fake))
     out = asyncio.run(llm.json_call(llm.config.STRONG_MODEL, "sys", "user", UnderstandOut))
     assert out.app_name == "A"
     assert [c["model"] for c in fake.calls] == [llm.config.STRONG_MODEL, llm.config.STRONG_FALLBACK_MODEL]
+
+
+def test_provider_routing():
+    assert llm.is_mistral_model("codestral-latest")
+    assert not llm.is_mistral_model("openai/gpt-oss-20b")
+    assert not llm.is_mistral_model("qwen/qwen3.8-27b")
+    # Mistral takes max_tokens; Groq takes max_completion_tokens.
+    assert "max_tokens" in llm.token_limit("codestral-latest")
+    assert "max_completion_tokens" in llm.token_limit("openai/gpt-oss-20b")
+    # Codestral gets no reasoning knobs (Mistral rejects unknown fields).
+    assert llm.model_params("codestral-latest") == {}
+    assert str(llm.client("codestral-latest").base_url).startswith(llm.config.MISTRAL_BASE_URL)
+    assert str(llm.client("openai/gpt-oss-20b").base_url).startswith(llm.config.LLM_BASE_URL)

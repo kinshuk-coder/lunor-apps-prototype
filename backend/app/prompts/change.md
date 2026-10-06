@@ -10,5 +10,3 @@ Output format, strictly:
 ...complete updated file...
 <<<END>>>
 Output only files you change, each complete. No markdown fences inside blocks. Start with ONE short sentence describing the change.
-
-- Some files may be shown as "outline only". NEVER output a file you only saw as an outline (you do not have its full contents); use its exported names instead.

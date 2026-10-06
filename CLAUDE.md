@@ -22,7 +22,7 @@ The backend venv was made with `uv` on Python 3.12 at `backend/.venv/Scripts/pyt
 .venv/Scripts/python.exe -m uvicorn app.main:app --port 8000       # dev server
 .venv/Scripts/python.exe -m pytest -q                               # all tests (no API key needed)
 .venv/Scripts/python.exe -m pytest -q tests/test_fileblocks.py::test_fences_are_stripped   # single test
-.venv/Scripts/python.exe -m scripts.smoke ["idea"]                  # live Groq run: Understand -> Plan -> Build 2 tasks
+.venv/Scripts/python.exe -m scripts.smoke ["idea"]                  # live run (Groq + Mistral): Understand -> Plan -> Build 2 tasks
 
 # frontend (run from frontend/)
 npm run dev            # http://localhost:3000, expects NEXT_PUBLIC_API_URL (see .env.example)
@@ -38,27 +38,27 @@ Windows gotchas:
 
 ## LLM layer (`backend/app/llm.py`, `config.py`)
 
-- **Client.** The OpenAI Python SDK is pointed at Groq (`LLM_BASE_URL`).
+- **Clients.** The OpenAI Python SDK talks to two providers. `llm.client(model)` picks one by model name (`is_mistral_model`): Mistral (`MISTRAL_BASE_URL`, `MISTRAL_API_KEY`) for Codestral, Groq (`LLM_BASE_URL`, `GROQ_API_KEY`) for everything else. Mistral takes `max_tokens` and Groq `max_completion_tokens` (`token_limit`).
 - **Model names.** They appear only in `config.py`, and each can be overridden by env var:
 
   | Setting | Default | Used for |
   |---|---|---|
-  | `STRONG_MODEL` | `qwen/qwen3.8-27b` | Plan, Build, fix, change, challenge check |
+  | `STRONG_MODEL` | `codestral-latest` (Mistral) | Plan, Build, fix, change, challenge check |
   | `FAST_MODEL` | `openai/gpt-oss-20b` | Understand, Explain, Learn |
   | `STRONG_FALLBACK_MODEL` | `openai/gpt-oss-120b` | Strong-model calls that get rate-limited |
 
 - **Loading `.env`.** `config.py` loads `backend/.env` by explicit path with `override=True`.
 - **`json_call`** (non-streamed stages):
-  - Sends Groq **strict `json_schema`** structured output.
+  - Sends **strict `json_schema`** structured output.
   - The schema comes from the Pydantic model via `strict_schema()`, which inlines `$ref`s, marks every property required, sets `additionalProperties: false`, and strips metadata keys. It must not strip *field names* such as `title`; a regression test covers this.
-  - Validates the reply with Pydantic and re-asks once on failure. A Groq 400 `json_validate_failed` is also re-asked.
-- **`stream_call`** (plain-text streaming). Groq **cannot stream structured outputs**, so the Build, fix and change stages stream text instead.
+  - Validates the reply with Pydantic and re-asks once on failure. A provider 400 (e.g. Groq `json_validate_failed`) is also re-asked.
+- **`stream_call`** (plain-text streaming). Structured outputs **can't be streamed**, so the Build, fix and change stages stream text instead.
 - **`create()` fallback.**
-  - Calls to `STRONG_MODEL` are sent with no SDK retries. A 429 immediately retries the call on `STRONG_FALLBACK_MODEL`.
+  - Calls to `STRONG_MODEL` are sent with no SDK retries. A 429 or 413 immediately retries the call on `STRONG_FALLBACK_MODEL` (Groq).
   - Other models use the SDK's normal retry with backoff.
-  - Background: Groq's free tier allows about 8K tokens per minute per model, and Qwen also has a 1K output-tokens-per-minute cap.
+  - Background: Groq's free tier allows about 8K tokens per minute per model, too small for Build prompts, which is why the strong model is Codestral (256K context).
 - **Reasoning settings** (`model_params`):
-  - Qwen gets `reasoning_format="hidden"`.
+  - Qwen (if used) gets `reasoning_format="hidden"`. Codestral gets nothing (Mistral rejects unknown fields).
   - gpt-oss gets `reasoning_effort="low"` and `include_reasoning=False`; gpt-oss rejects `reasoning_format`.
 
 ## Pipeline and data flow
@@ -84,7 +84,7 @@ Windows gotchas:
 
 - **`app/project/[id]/page.tsx`** holds all project state and orchestration:
   - Stage navigation, and SSE handling through `lib/api.ts:streamSSE`. It reads SSE with fetch because streaming endpoints are POST.
-  - `file_delta` text is buffered in a ref and flushed every ~60ms. Groq streams fast enough that calling setState per token causes "Maximum update depth exceeded".
+  - `file_delta` text is buffered in a ref and flushed every ~60ms. The models stream fast enough that calling setState per token causes "Maximum update depth exceeded".
   - The auto-fix loop (see the preview item below).
 - **Two file states:**
   - `files` is the live editor content, including partially streamed files.

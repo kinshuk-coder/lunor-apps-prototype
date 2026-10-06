@@ -12,18 +12,21 @@ from dotenv import load_dotenv
 # GROQ_API_KEY inherited from the shell doesn't mask the local .env value.
 load_dotenv(Path(__file__).resolve().parent.parent / ".env", override=True)
 
+# Two OpenAI-compatible providers. Which one a call goes to is decided by the
+# model name (see llm.is_mistral_model).
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-LLM_BASE_URL = os.getenv("LLM_BASE_URL", "https://api.groq.com/openai/v1")
+LLM_BASE_URL = os.getenv("LLM_BASE_URL", "https://api.groq.com/openai/v1")  # Groq
+MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY", "")
+# Use https://codestral.mistral.ai/v1 instead if you have a Codestral-specific key.
+MISTRAL_BASE_URL = os.getenv("MISTRAL_BASE_URL", "https://api.mistral.ai/v1")
 
-# Strong coding model: Plan, Build, auto-fix, challenge checking.
-STRONG_MODEL = os.getenv("STRONG_MODEL", "qwen/qwen3.8-27b")
-# Used when the strong model is rate-limited (Groq limits are per model, so this
-# also spreads load). On Groq's free tier qwen3.8-27b allows only 1K output tokens/min.
+# Strong coding model (Mistral): Plan, Build, auto-fix, change requests, challenge checking.
+STRONG_MODEL = os.getenv("STRONG_MODEL", "codestral-latest")
+# Used when the strong model is rate-limited or the request is too large (Groq).
 STRONG_FALLBACK_MODEL = os.getenv("STRONG_FALLBACK_MODEL", "openai/gpt-oss-120b")
-# Fast, cheap model: Understand, Explain, Learn.
+# Fast, cheap model (Groq): Understand, Explain, Learn.
 FAST_MODEL = os.getenv("FAST_MODEL", "openai/gpt-oss-20b")
 
-# Groq caps qwen3.8-27b at 16,384 output tokens per call.
 STRONG_MAX_TOKENS = int(os.getenv("STRONG_MAX_TOKENS", "16000"))
 FAST_MAX_TOKENS = int(os.getenv("FAST_MAX_TOKENS", "8000"))
 

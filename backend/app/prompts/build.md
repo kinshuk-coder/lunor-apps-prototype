@@ -20,5 +20,3 @@ Code quality:
 - Keep each file focused and under ~200 lines. Add brief comments that explain intent - a beginner will read this code to learn.
 - Use StyleSheet.create for styles; make it look clean and modern (spacing, rounded cards, one accent colour).
 - The app must not crash if storage is empty.
-
-- Some files may be shown as "outline only". NEVER output a file you only saw as an outline (you do not have its full contents); use its exported names instead.

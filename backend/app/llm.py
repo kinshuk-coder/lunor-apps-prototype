@@ -1,4 +1,4 @@
-"""OpenAI SDK pointed at Groq.
+"""OpenAI SDK pointed at Groq (fast model) and Mistral (Codestral, strong model).
 
 Two entry points:
 - json_call: non-streamed, strict json_schema structured output, validated by
@@ -19,16 +19,25 @@ from . import config
 log = logging.getLogger("lunor.llm")
 T = TypeVar("T", bound=BaseModel)
 
-_client: AsyncOpenAI | None = None
+_clients: dict[str, AsyncOpenAI] = {}
+
+MISTRAL_PREFIXES = ("codestral", "mistral", "devstral", "magistral", "ministral")
 
 
-def client() -> AsyncOpenAI:
-    global _client
-    if _client is None:
-        _client = AsyncOpenAI(
-            api_key=config.GROQ_API_KEY or "missing", base_url=config.LLM_BASE_URL, max_retries=config.LLM_MAX_RETRIES
+def is_mistral_model(model: str) -> bool:
+    return model.startswith(MISTRAL_PREFIXES)
+
+
+def client(model: str = "") -> AsyncOpenAI:
+    """Client for the provider that serves `model` (Mistral or Groq)."""
+    provider = "mistral" if is_mistral_model(model) else "groq"
+    if provider not in _clients:
+        key, url = (
+            (config.MISTRAL_API_KEY, config.MISTRAL_BASE_URL) if provider == "mistral"
+            else (config.GROQ_API_KEY, config.LLM_BASE_URL)
         )
-    return _client
+        _clients[provider] = AsyncOpenAI(api_key=key or "missing", base_url=url, max_retries=config.LLM_MAX_RETRIES)
+    return _clients[provider]
 
 
 def model_params(model: str) -> dict:
@@ -44,6 +53,12 @@ def max_tokens_for(model: str) -> int:
     return config.FAST_MAX_TOKENS if model == config.FAST_MODEL else config.STRONG_MAX_TOKENS
 
 
+def token_limit(model: str) -> dict:
+    # Mistral's API takes max_tokens; Groq takes the newer max_completion_tokens.
+    key = "max_tokens" if is_mistral_model(model) else "max_completion_tokens"
+    return {key: max_tokens_for(model)}
+
+
 async def create(model: str, **kwargs):
     """chat.completions.create with a per-model fallback when rate-limited.
 
@@ -53,18 +68,16 @@ async def create(model: str, **kwargs):
     fallback = config.STRONG_FALLBACK_MODEL
     can_fall_back = model == config.STRONG_MODEL and fallback and fallback != model
     # With a fallback available, fail fast instead of sitting in SDK backoff.
-    c = client().with_options(max_retries=0) if can_fall_back else client()
+    c = client(model).with_options(max_retries=0) if can_fall_back else client(model)
     try:
-        return await c.chat.completions.create(
-            model=model, max_completion_tokens=max_tokens_for(model), **model_params(model), **kwargs
-        )
+        return await c.chat.completions.create(model=model, **token_limit(model), **model_params(model), **kwargs)
     except openai.APIStatusError as e:
         # 429 = out of tokens this minute; 413 = request bigger than the model's per-minute cap.
         if not can_fall_back or e.status_code not in (413, 429):
             raise
         log.warning("%s rate-limited, falling back to %s: %s", model, fallback, str(e)[:200])
-        return await client().chat.completions.create(
-            model=fallback, max_completion_tokens=max_tokens_for(fallback), **model_params(fallback), **kwargs
+        return await client(fallback).chat.completions.create(
+            model=fallback, **token_limit(fallback), **model_params(fallback), **kwargs
         )
 
 

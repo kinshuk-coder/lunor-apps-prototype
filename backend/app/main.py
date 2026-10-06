@@ -135,7 +135,7 @@ def sse(gen: AsyncIterator[dict]) -> EventSourceResponse:
 @app.get("/health")
 def health():
     return {"ok": True, "strong_model": config.STRONG_MODEL, "fast_model": config.FAST_MODEL,
-            "key_configured": bool(config.GROQ_API_KEY)}
+            "key_configured": bool(config.GROQ_API_KEY), "mistral_key_configured": bool(config.MISTRAL_API_KEY)}
 
 
 @app.get("/template")

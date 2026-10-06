@@ -7,10 +7,10 @@ Produce:
 - screens: 2-4 screens. PascalCase names ending in "Screen". For each, its purpose and the main UI components on it.
 - navigation: how the user moves between screens (from_screen, to_screen, trigger such as "tap a habit").
 - data_model: the entities the app stores, their fields as "name: type", and where they live (e.g. AsyncStorage key "habits", or component state).
-- tasks: 3-6 ordered build tasks with ids starting at 1. Each task creates or edits AT MOST 2 files (App.js counts) and lists exactly those files. Never plan a task that touches every file (e.g. "polish all screens"); put styling inside each screen's own task instead. Keep the whole app small: each file under ~150 lines.
+- tasks: 3-6 ordered build tasks with ids starting at 1. Each task is small enough to write in one go (at most ~3 files) and lists the exact files it creates or edits.
   - Task 1 always sets up App.js with navigation and placeholder screens so the app runs immediately.
   - Shared data logic goes in a file such as "storage.js" or "hooks/useHabits.js".
-  - Later tasks fill in screens one at a time, each with its final styling.
+  - Later tasks fill in screens one at a time; the last task polishes styling.
   - File paths are relative, use .js, and screens live in "screens/".
 
 Prefer the simplest design that makes the "must" features work well.
