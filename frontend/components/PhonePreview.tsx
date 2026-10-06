@@ -53,6 +53,7 @@ export default function PhonePreview({ files, onError, onHealthy }: Props) {
   const snackRef = useRef<any>(null);
   const [webPreviewURL, setWebPreviewURL] = useState<string>();
   const [expoUrl, setExpoUrl] = useState<string>();
+  const [sdkMajor, setSdkMajor] = useState<string>();
   const [status, setStatus] = useState<"loading" | "ok" | "error" | "reloading">("loading");
   const [showQR, setShowQR] = useState(false);
   const lastErrorKey = useRef("");
@@ -89,6 +90,7 @@ export default function PhonePreview({ files, onError, onHealthy }: Props) {
       const sync = (state: any, prev?: any) => {
         setWebPreviewURL(state.webPreviewURL);
         setExpoUrl(state.url);
+        setSdkMajor(String(state.sdkVersion ?? "").split(".")[0] || undefined);
         // Pin "*" dependencies to the versions compatible with the Snack's Expo SDK,
         // and add any peer packages the resolver says are missing.
         const wanted = state.wantedDependencyVersions ?? {};
@@ -186,7 +188,21 @@ export default function PhonePreview({ files, onError, onHealthy }: Props) {
       {showQR && expoUrl && (
         <div className="flex flex-col items-center gap-2 rounded-xl bg-white p-3">
           <QRCodeSVG value={expoUrl} size={140} />
-          <p className="max-w-[180px] text-center text-[11px] text-zinc-600">Scan with Expo Go to run this app on your phone</p>
+          <p className="max-w-[200px] text-center text-[11px] text-zinc-600">Scan with Expo Go to run this app on your phone</p>
+          {sdkMajor && (
+            // Snack only serves up to this SDK, and Expo Go opens only its own SDK version.
+            <p className="max-w-[200px] text-center text-[11px] text-zinc-500">
+              Requires Expo Go for <strong>SDK {sdkMajor}</strong>.{" "}
+              <a
+                href={`https://expo.dev/go?sdkVersion=${sdkMajor}&platform=android&device=true`}
+                target="_blank"
+                rel="noreferrer"
+                className="text-violet-600 underline"
+              >
+                Get it for Android
+              </a>
+            </p>
+          )}
         </div>
       )}
     </div>
