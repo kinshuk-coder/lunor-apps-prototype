@@ -74,7 +74,8 @@ cd backend
 
 ## Deploy
 
-- **Backend → Render.** Use `render.yaml` as a blueprint. Set `GROQ_API_KEY`, and set `CORS_ORIGINS` to your Vercel URL. `*.vercel.app` is also allowed by regex.
+- **Backend → FastAPI Cloud.** From `backend/`, run `fastapi deploy`, which logs in through the browser on first use. The entrypoint is `[tool.fastapi] entrypoint = "app.main:app"` in `backend/pyproject.toml`, and dependencies come from `pyproject.toml` / `uv.lock`. `.gitignore` is respected, so `.env`, `.venv` and `*.db` are not uploaded. Set the key with `fastapi cloud env set GROQ_API_KEY --secret`, then redeploy, because env changes apply on the next deploy.
+- **Backend → Render (alternative).** Use `render.yaml` as a blueprint. Set `GROQ_API_KEY`, and set `CORS_ORIGINS` to your Vercel URL. `*.vercel.app` is also allowed by regex.
 - **Frontend → Vercel.** Set the root directory to `frontend` and set the env var `NEXT_PUBLIC_API_URL=https://<render-service>.onrender.com`.
 - API keys live only in environment variables; `.env` files are git-ignored.
 
