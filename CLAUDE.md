@@ -72,6 +72,7 @@ Windows gotchas:
   - Prompts containing `{template_rules}` get `TEMPLATE_RULES` from `template.py` substituted in.
   - `template.py` holds the fixed Expo template, the package allow-list and the starter `App.js`. Rules there apply to every generated app, so put fixes for recurring generated-code bugs there. One example already in it: never set a header option both in App.js and through `navigation.setOptions`.
   - `template.py` is Python, so changing it needs a server restart.
+  - **Package allow-list enforcement.** After each Build task, fix and change, `main.py:enforce_allowlist` runs `template.disallowed_imports()` over all files. If anything imports a package outside `ALLOWED_PACKAGES`, it streams one fix pass telling the model to replace it. Snack can't load unlisted packages, and one bad import (e.g. `expo-av`) blanks the whole preview.
 - **Build, fix and change streaming:**
   1. The model emits `<<<FILE path>>> … <<<END>>>` and `<<<DELETE path>>>` blocks.
   2. `agents/fileblocks.py:FileBlockParser` parses them incrementally. It handles markers split across chunks, emits commentary as whole lines, and strips stray markdown fences.
@@ -91,6 +92,7 @@ Windows gotchas:
   - `previewFiles` is pushed to the phone only on `task_done` or on debounced user edits, so half-written files never reach the preview.
 - **`components/PhonePreview.tsx`** uses `snack-sdk`:
   - It creates a `Snack` once (client-only dynamic import) with `webPreviewRef` wired to the iframe.
+  - **Self-hosted runtime.** Expo's hosted Snack web runtime (`snack-runtime.eascdn.net`) only accepts `snack.expo.dev`, a few partner sites and `http://localhost:*` as the parent page, so on any deployed domain the preview hangs on "Connecting". `scripts/fetch-snack-runtime.mjs` (run by `predev`/`prebuild`) downloads the runtime's `index.html` and bundle into `public/v2/<sdk>/` (git-ignored) and patches its origin check to also accept its own host. `next.config.ts` rewrites every other `/v2/*` file to Expo's CDN. `PhonePreview` passes `webPlayerURL: ${origin}/v2/%%SDK_VERSION%%`. To test locally, use `http://127.0.0.1:3000`: `localhost` is always allowed, so it can't prove the patch.
   - It infers dependencies from import statements and filters them by the allow-list. These must stay in sync with `ALLOWED_PACKAGES` in `backend/app/template.py`.
   - It pins `"*"` versions to `wantedDependencyVersions` and adds `missingDependencies`.
   - It reports runtime errors from errored `connectedClients` and from `error` logs.

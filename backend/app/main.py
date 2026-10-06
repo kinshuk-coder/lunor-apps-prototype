@@ -24,7 +24,7 @@ from .schemas import (
     ChallengeCheckRequest, ChangeRequest, CreateProject, ExplainRequest, FilesUpdate, FixRequest,
     PlanOut, PlanRequest, QuizResult,
 )
-from .template import ALLOWED_PACKAGES, STARTER_FILES
+from .template import ALLOWED_PACKAGES, STARTER_FILES, disallowed_imports
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("lunor")
@@ -116,6 +116,25 @@ async def apply_stream(pid: str, events: AsyncIterator[Event], task_id: int | No
             if path and path != "App.js":
                 db.delete_file(pid, path)
                 yield {"event": "file_deleted", "data": json.dumps({"path": path})}
+
+
+async def enforce_allowlist(pid: str, p: dict, task_id: int | None = None) -> AsyncIterator[dict]:
+    """If the model imported a package outside the template's allow-list, ask it once to replace it.
+
+    Snack can't load unlisted packages, so one bad import blanks the whole preview.
+    """
+    bad = disallowed_imports(db.get_files(pid))
+    if not bad:
+        return
+    found = "; ".join(f"{path} imports {', '.join(pkgs)}" for path, pkgs in bad.items())
+    yield {"event": "note", "data": json.dumps({"text": f"Replacing packages that aren't available: {found}", "task_id": task_id})}
+    error = (
+        f"These imports can't be loaded in this app: {found}. Only these packages are available: "
+        f"{', '.join(ALLOWED_PACKAGES)}. Remove the unavailable imports and implement the same behaviour "
+        "with what is available (e.g. Vibration from react-native instead of a sound library)."
+    )
+    async for msg in apply_stream(pid, build_agent.fix(p, db.get_files(pid), error), task_id):
+        yield msg
 
 
 def sse(gen: AsyncIterator[dict]) -> EventSourceResponse:
@@ -215,6 +234,8 @@ async def build(pid: str):
             files = db.get_files(pid)
             async for msg in apply_stream(pid, build_agent.build_task(p, files, task), task["id"]):
                 yield msg
+            async for msg in enforce_allowlist(pid, p, task["id"]):
+                yield msg
             built.append(task["id"])
             db.update_project(pid, built_task_ids=built)
             yield {"event": "task_done", "data": json.dumps({"task_id": task["id"], "files": db.get_files(pid)})}
@@ -229,6 +250,8 @@ async def fix(pid: str, body: FixRequest):
     async def gen():
         async for msg in apply_stream(pid, build_agent.fix(p, db.get_files(pid), body.error[:4000])):
             yield msg
+        async for msg in enforce_allowlist(pid, p):
+            yield msg
         yield {"event": "task_done", "data": json.dumps({"task_id": None, "files": db.get_files(pid)})}
 
     return sse(gen())
@@ -240,6 +263,8 @@ async def change(pid: str, body: ChangeRequest):
 
     async def gen():
         async for msg in apply_stream(pid, build_agent.change(p, db.get_files(pid), body.request[:2000])):
+            yield msg
+        async for msg in enforce_allowlist(pid, p):
             yield msg
         yield {"event": "task_done", "data": json.dumps({"task_id": None, "files": db.get_files(pid)})}
 

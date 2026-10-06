@@ -41,3 +41,14 @@ def test_safe_path():
     assert safe_path("../etc/passwd.js") is None
     assert safe_path("evil.sh") is None
     assert safe_path("package.json") is None
+
+
+def test_disallowed_imports():
+    from app.template import disallowed_imports
+
+    files = {
+        "App.js": "import React from 'react';\nimport { Audio } from 'expo-av';\nimport X from './screens/X';",
+        "screens/X.js": "import { Ionicons } from '@expo/vector-icons';\nconst h = require('expo-haptics');",
+        "ok.js": "import AsyncStorage from '@react-native-async-storage/async-storage';",
+    }
+    assert disallowed_imports(files) == {"App.js": ["expo-av"], "screens/X.js": ["expo-haptics"]}

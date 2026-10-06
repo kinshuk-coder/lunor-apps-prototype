@@ -3,6 +3,7 @@
 Constraining the generated app to one entry file and a short allow-list of
 packages is what keeps it reliably runnable in Expo Snack.
 """
+import re
 from pathlib import Path
 
 # Packages the generated app may import (Snack resolves the versions).
@@ -27,7 +28,8 @@ TEMPLATE_RULES = f"""- Expo managed app, plain JavaScript, entry file is App.js 
 - Give every screen's content horizontal padding of at least 16.
 - Persistence: @react-native-async-storage/async-storage only. No backend, no network calls, no login.
 - Icons: @expo/vector-icons (e.g. Ionicons). No image assets or custom fonts.
-- Must work in the Snack web preview AND on a phone via Expo Go (avoid web-only or native-only APIs; no Alert.prompt)."""
+- Must work in the Snack web preview AND on a phone via Expo Go (avoid web-only or native-only APIs; no Alert.prompt).
+- If a feature seems to need another package (e.g. sound via expo-av, haptics, notifications), do NOT import it: use what react-native provides instead (e.g. Vibration, an on-screen alert or animation)."""
 
 STARTER_FILES = {
     "App.js": """import React from 'react';
@@ -52,6 +54,22 @@ const styles = StyleSheet.create({
 });
 """,
 }
+
+_IMPORT_RE = re.compile(r"""(?:\bfrom\s*|\bimport\s*|\brequire\(\s*)['"]([^'"]+)['"]""")
+
+
+def disallowed_imports(files: dict[str, str]) -> dict[str, list[str]]:
+    """{path: [packages]} for imports that are neither relative nor on the allow-list."""
+    bad: dict[str, list[str]] = {}
+    for path, src in files.items():
+        for spec in _IMPORT_RE.findall(src):
+            if spec.startswith("."):
+                continue
+            pkg = "/".join(spec.split("/")[:2]) if spec.startswith("@") else spec.split("/")[0]
+            if pkg not in ALLOWED_PACKAGES and pkg not in bad.get(path, []):
+                bad.setdefault(path, []).append(pkg)
+    return bad
+
 
 PROMPTS_DIR = Path(__file__).parent / "prompts"
 

@@ -83,6 +83,9 @@ export default function PhonePreview({ files, onError, onHealthy }: Props) {
         files: toSnackFiles(files),
         dependencies: dependenciesFor(files),
         webPreviewRef,
+        // Self-hosted runtime (scripts/fetch-snack-runtime.mjs): Expo's hosted one only
+        // accepts snack.expo.dev, partner sites and localhost as the parent page.
+        webPlayerURL: `${window.location.origin}/v2/%%SDK_VERSION%%`,
         online: true,
         codeChangesDelay: 500,
       });
