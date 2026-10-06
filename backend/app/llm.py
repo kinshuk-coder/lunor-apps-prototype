@@ -58,8 +58,9 @@ async def create(model: str, **kwargs):
         return await c.chat.completions.create(
             model=model, max_completion_tokens=max_tokens_for(model), **model_params(model), **kwargs
         )
-    except openai.RateLimitError as e:
-        if not can_fall_back:
+    except openai.APIStatusError as e:
+        # 429 = out of tokens this minute; 413 = request bigger than the model's per-minute cap.
+        if not can_fall_back or e.status_code not in (413, 429):
             raise
         log.warning("%s rate-limited, falling back to %s: %s", model, fallback, str(e)[:200])
         return await client().chat.completions.create(

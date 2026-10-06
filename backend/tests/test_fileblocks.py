@@ -58,3 +58,24 @@ def test_fences_are_stripped():
     assert strip_fences("```javascript\nconst x = 1;\n```\n") == "const x = 1;\n"
     files = files_of(run(["<<<FILE a.js>>>\n```js\nlet y;\n```\n<<<END>>>"]))
     assert files["a.js"] == "let y;\n"
+
+
+def test_files_block_outlines_unfocused_files_when_large():
+    from app.agents import common
+
+    big = "import React from 'react';\nexport default function Big() {\n" + "  const x = 1;\n" * 2000 + "}\n"
+    files = {"App.js": "import X from './X';\n", "screens/Big.js": big, "screens/Task.js": "const t = 1;\n"}
+    out = common.files_block(files, focus={"screens/Task.js", "App.js"})
+    assert "### screens/Big.js (outline only" in out
+    assert "export default function Big()" in out and "const x = 1;" not in out
+    assert "const t = 1;" in out
+    # Small projects are always sent in full.
+    small = {"a.js": "const a = 1;\n", "b.js": "const b = 2;\n"}
+    assert "outline only" not in common.files_block(small, focus={"a.js"})
+
+
+def test_mentioned_files():
+    from app.agents.common import mentioned_files
+
+    files = {"App.js": "", "screens/TimerScreen.js": "", "storage.js": ""}
+    assert mentioned_files(files, "TypeError in TimerScreen (screens/TimerScreen.js:12)") == {"screens/TimerScreen.js"}

@@ -77,7 +77,8 @@ def test_model_params():
     assert "reasoning_format" not in llm.model_params("openai/gpt-oss-20b")["extra_body"]
 
 
-def test_strong_model_falls_back_when_rate_limited(monkeypatch):
+@pytest.mark.parametrize("status", [429, 413])
+def test_strong_model_falls_back_when_rate_limited(monkeypatch, status):
     import httpx
     import openai
 
@@ -87,8 +88,8 @@ def test_strong_model_falls_back_when_rate_limited(monkeypatch):
         async def create(self, **kwargs):
             self.calls.append(kwargs)
             if kwargs["model"] == llm.config.STRONG_MODEL:
-                resp = httpx.Response(429, request=httpx.Request("POST", "http://x"))
-                raise openai.RateLimitError("Request too large", response=resp, body=None)
+                resp = httpx.Response(status, request=httpx.Request("POST", "http://x"))
+                raise openai.APIStatusError("Request too large", response=resp, body=None)
             return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=good))])
 
     fake = LimitedOnce([])
